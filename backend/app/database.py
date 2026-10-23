@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 SCHEMA = """
+-- One row per phone. The unique token makes registration idempotent.
 CREATE TABLE IF NOT EXISTS devices (
     id           TEXT PRIMARY KEY,
     fcm_token    TEXT NOT NULL UNIQUE,
@@ -15,6 +16,7 @@ CREATE TABLE IF NOT EXISTS devices (
     is_active    INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
 );
 
+-- One row per send attempt, whether it worked or not.
 CREATE TABLE IF NOT EXISTS notifications (
     id                  TEXT PRIMARY KEY,
     device_id           TEXT NOT NULL REFERENCES devices(id),

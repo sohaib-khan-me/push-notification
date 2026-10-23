@@ -54,6 +54,7 @@ function describe(body: unknown, fallback: string): string {
   return fallback
 }
 
+/** One place for all calls: turns network and HTTP errors into a readable ApiError. */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {

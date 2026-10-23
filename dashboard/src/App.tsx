@@ -78,6 +78,7 @@ export default function App() {
     }
   }, [])
 
+  // Load once, then poll so new phones and results show up without a manual refresh.
   useEffect(() => {
     void refresh()
     const timer = setInterval(() => void refresh(), POLL_MS)
@@ -94,6 +95,7 @@ export default function App() {
   const bodyError = body.trim() ? null : 'Message is required'
   const canSend = !sending && !!deviceId && !titleError && !bodyError && !backendError
 
+  // Success here only means Firebase accepted the message, not that the phone showed it.
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!canSend) return

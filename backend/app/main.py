@@ -24,6 +24,7 @@ from .schemas import (
     SendNotificationResponse,
 )
 
+# Holds the current request's ID so every log line can include it.
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
 
@@ -67,6 +68,7 @@ def create_app(settings: Settings | None = None, sender: PushSender | None = Non
     log = logging.getLogger("push.api")
 
     app = FastAPI(title="Local Push Notifications API")
+    # Only the dashboard's origin may call this API from a browser.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -75,6 +77,7 @@ def create_app(settings: Settings | None = None, sender: PushSender | None = Non
         expose_headers=["X-Request-ID"],
     )
 
+    # Give every request a short ID, log it, and return it in X-Request-ID.
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         rid = uuid.uuid4().hex[:8]
@@ -86,6 +89,7 @@ def create_app(settings: Settings | None = None, sender: PushSender | None = Non
         response.headers["X-Request-ID"] = rid
         return response
 
+    # Safety nets: clients get a generic message; details go to the log only.
     @app.exception_handler(sqlite3.Error)
     async def db_error(request: Request, exc: sqlite3.Error):
         log.error("database error: %s", type(exc).__name__)
@@ -96,6 +100,7 @@ def create_app(settings: Settings | None = None, sender: PushSender | None = Non
         log.error("unhandled %s", type(exc).__name__, exc_info=exc)
         return JSONResponse(status_code=500, content={"detail": "Internal server error."})
 
+    # "ok" only when both the database and Firebase are ready.
     @app.get("/api/health", response_model=HealthResponse)
     def health():
         try:
@@ -108,6 +113,7 @@ def create_app(settings: Settings | None = None, sender: PushSender | None = Non
         ok = db_state == "ok" and firebase_state == "ready"
         return HealthResponse(status="ok" if ok else "degraded", database=db_state, firebase=firebase_state)
 
+    # Called by the phone on launch and on token refresh. Safe to repeat.
     @app.post("/api/devices/register", response_model=RegisterDeviceResponse)
     def register_device(body: RegisterDeviceRequest):
         device, created = devices.register(body.fcm_token, body.platform, body.device_name)
@@ -125,6 +131,7 @@ def create_app(settings: Settings | None = None, sender: PushSender | None = Non
             raise HTTPException(status_code=404, detail="Unknown device ID.")
         except DeviceInactiveError:
             raise HTTPException(status_code=409, detail="This device is inactive. Open the app so it re-registers.")
+        # 200 only when Firebase accepted it; otherwise 410/502/503 with the same body.
         payload = SendNotificationResponse(
             accepted=result.http_status == 200,
             notification=_notification_out(result.notification),

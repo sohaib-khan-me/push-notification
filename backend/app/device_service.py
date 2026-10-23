@@ -47,6 +47,7 @@ class DeviceService:
             rows = conn.execute("SELECT * FROM devices ORDER BY last_seen_at DESC").fetchall()
         return [Device.from_row(r) for r in rows]
 
+    # Used when Firebase says the token is dead. The row is kept for history.
     def deactivate(self, device_id: str) -> None:
         with self.db.connect() as conn:
             conn.execute("UPDATE devices SET is_active = 0 WHERE id = ?", (device_id,))
