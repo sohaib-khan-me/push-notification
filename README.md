@@ -47,23 +47,54 @@ You need: Node 22 or newer, pnpm, Python 3.12, Java 17, the Android SDK, and a F
 
 ## How to run it
 
+Use a separate terminal for each step that keeps running.
+
+### Step 1: Start the backend
+
 ```bash
-# 1. Backend  (http://127.0.0.1:8000)
 ./scripts/start-backend.sh
-
-# 2. Dashboard  (http://localhost:5173)
-./scripts/start-dashboard.sh
-
-# 3. Android app (connect your phone with a USB cable, USB debugging on)
-cd mobile
-pnpm install
-adb reverse tcp:8000 tcp:8000     # lets the phone reach the backend
-adb reverse tcp:8081 tcp:8081     # lets the phone reach Metro
-pnpm start                        # keep this running in one terminal
-pnpm android                      # in a second terminal: build and install
 ```
 
-Open the app and allow notifications. Your phone will show up in the dashboard. Choose it and press **Send Notification**.
+Runs at http://127.0.0.1:8000. Check it with `curl http://127.0.0.1:8000/api/health`.
+
+### Step 2: Start the dashboard
+
+```bash
+./scripts/start-dashboard.sh
+```
+
+Open http://localhost:5173 in your browser.
+
+### Step 3: Connect your phone
+
+Plug in your phone with a USB cable and turn on USB debugging. Then run:
+
+```bash
+adb devices                       # your phone should say "device"
+adb reverse tcp:8000 tcp:8000     # lets the phone reach the backend
+adb reverse tcp:8081 tcp:8081     # lets the phone reach Metro
+```
+
+### Step 4: Build and install the app
+
+```bash
+cd mobile
+pnpm install                      # first time only
+pnpm start                        # keep this running (Metro)
+```
+
+In a second terminal:
+
+```bash
+cd mobile
+pnpm android                      # builds and installs the app on your phone
+```
+
+### Step 5: Send your first notification
+
+1. Open the app on your phone and allow notifications.
+2. Your phone appears in the dashboard.
+3. Choose it, type a message, and press **Send Notification**.
 
 No USB cable? In the app, open **Settings** and change the backend address:
 - Emulator: `http://10.0.2.2:8000`
