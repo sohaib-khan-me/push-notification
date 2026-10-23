@@ -123,23 +123,73 @@ When the dashboard says "accepted by Firebase", it means Firebase received the m
 
 ## Tests
 
+**Backend** (Firebase is faked, so nothing is really sent):
+
 ```bash
-cd backend && source .venv/bin/activate && python -m pytest -q   # Firebase is faked, nothing is really sent
-cd dashboard && pnpm build && pnpm lint
-cd mobile && npx tsc --noEmit && pnpm lint
+cd backend
+source .venv/bin/activate
+python -m pytest -q
+```
+
+**Dashboard:**
+
+```bash
+cd dashboard
+pnpm build
+pnpm lint
+```
+
+**Mobile app:**
+
+```bash
+cd mobile
+npx tsc --noEmit
+pnpm lint
 ```
 
 ## Common problems
 
-| Problem | What to do |
-|---|---|
-| Dashboard says "backend offline" | Start the backend first |
-| App cannot register | Run `adb reverse tcp:8000 tcp:8000` again. It resets when you unplug the phone |
-| Install fails: not enough storage | In `mobile/android`, run `./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a` for a smaller app |
-| Gradle cannot find `gradle-plugin` | Run `pnpm install` inside `mobile/` |
-| Health shows `firebase: not_configured` | Check the key path in `backend/.env` |
-| Message accepted but nothing on the phone | Check notification permission, Do Not Disturb, battery saver, and that the app was not force-stopped |
+**Dashboard says "backend offline"**
+Start the backend first (Step 1).
+
+**The app cannot register**
+Run this again. It resets when you unplug the phone.
+
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+
+**Install fails: not enough storage**
+Build a smaller app for your phone's CPU:
+
+```bash
+cd mobile/android
+./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
+```
+
+**Gradle cannot find `gradle-plugin`**
+Run `pnpm install` inside the `mobile/` folder.
+
+**Health shows `firebase: not_configured`**
+Check the key path in `backend/.env`.
+
+**Message accepted, but nothing on the phone**
+Check these, one by one:
+- Notification permission is allowed
+- Do Not Disturb is off
+- Battery saver is not blocking the app
+- The app was not force-stopped
 
 ## Keep it safe
 
-These are ignored by git and must never be uploaded: `.env` files, the Firebase Admin key, `google-services.json`, signing keys, databases, and build files. Never put the Admin key in `dashboard/` or `mobile/`. Do not open the backend to the internet.
+Git ignores these files, and you must never upload them:
+
+- `.env` files
+- The Firebase Admin key
+- `google-services.json`
+- Signing keys, databases, and build files
+
+Also:
+
+- Never put the Admin key in `dashboard/` or `mobile/`.
+- Do not open the backend to the internet.
