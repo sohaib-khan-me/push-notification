@@ -1,101 +1,102 @@
 # Push Notification System
 
-Send a push notification from a web dashboard to an Android phone through Firebase Cloud Messaging (FCM). Everything runs locally.
+Send a notification from a web page on your laptop to your Android phone. It uses Firebase Cloud Messaging (FCM). Everything runs on your own computer.
 
 ```
- React dashboard ──HTTP──▶ FastAPI backend ──Admin SDK──▶ Firebase (FCM) ──▶ Android app
-                              │  SQLite                                         │
-                              └──────────── registers FCM token ◀───────────────┘
+ Dashboard (React) --> Backend (FastAPI) --> Firebase (FCM) --> Android app
+                          |  SQLite                                |
+                          +------- saves the phone's token <-------+
 ```
 
-## Features
+## What it does
 
-- Send a custom title and message to a selected device, with a live preview
-- Device registration is idempotent; tokens are stored in SQLite and always shown masked
-- Notification history with honest status (`accepted`, `failed`, `invalid_token`)
-- Dead tokens are deactivated; temporary network errors never remove a device
-- Delivery in foreground, background and closed states
-- Firebase credentials stay on the backend only, outside the repository
+- You type a title and a message, pick your phone, and press **Send Notification**.
+- The phone's token is saved in a small database. It is always shown shortened, never in full.
+- A history list shows every message you sent and what happened to it.
+- If a phone token stops working, the backend marks that phone as inactive. A short network problem does not remove it.
+- It works when the app is open, in the background, or closed.
+- The secret Firebase key stays on the backend only. It is never in the app or in this repository.
 
-## Stack
+## What it is made of
 
-| Part | Technology |
+| Folder | Technology |
 |---|---|
 | `dashboard/` | React, Vite, TypeScript, Tailwind CSS |
-| `backend/` | Python, FastAPI, Firebase Admin SDK, SQLite, pytest |
-| `mobile/` | React Native (CLI), TypeScript, React Native Firebase, Notifee |
+| `backend/` | Python, FastAPI, Firebase Admin SDK, SQLite |
+| `mobile/` | React Native, TypeScript, React Native Firebase, Notifee |
 
-## Setup
+## Before you start
 
-**Prerequisites:** Node 22+, pnpm, Python 3.12, JDK 17, Android SDK, a Firebase project with an Android app.
+You need: Node 22 or newer, pnpm, Python 3.12, Java 17, the Android SDK, and a Firebase project with an Android app.
 
-1. **Android config** – put `google-services.json` in `mobile/android/app/`.
-2. **Backend key** – save the Firebase Admin SDK key outside the repo, for example `~/.config/fcm-push-notifications/service-account.json` (mode `600`).
-3. **Backend env** – copy `backend/.env.example` to `backend/.env` and set `GOOGLE_APPLICATION_CREDENTIALS` to that absolute path.
+1. Put your `google-services.json` file in `mobile/android/app/`.
+2. Save your Firebase Admin key somewhere outside this project, for example `~/.config/fcm-push-notifications/service-account.json`.
+3. Copy `backend/.env.example` to `backend/.env`. Set `GOOGLE_APPLICATION_CREDENTIALS` to the full path of that key.
 
-## Run
+## How to run it
 
 ```bash
-# 1. Backend  -> http://127.0.0.1:8000  (docs at /docs)
+# 1. Backend  (http://127.0.0.1:8000)
 ./scripts/start-backend.sh
 
-# 2. Dashboard -> http://localhost:5173
+# 2. Dashboard  (http://localhost:5173)
 ./scripts/start-dashboard.sh
 
-# 3. Android app (phone connected by USB, USB debugging on)
-cd mobile && pnpm install
-adb reverse tcp:8000 tcp:8000     # phone reaches the backend
-adb reverse tcp:8081 tcp:8081     # phone reaches Metro
-pnpm start                        # terminal A
-pnpm android                      # terminal B: build and install
+# 3. Android app (connect your phone with a USB cable, USB debugging on)
+cd mobile
+pnpm install
+adb reverse tcp:8000 tcp:8000     # lets the phone reach the backend
+adb reverse tcp:8081 tcp:8081     # lets the phone reach Metro
+pnpm start                        # keep this running in one terminal
+pnpm android                      # in a second terminal: build and install
 ```
 
-Open the app and allow notifications. The phone appears in the dashboard; choose it and click **Send Notification**.
+Open the app and allow notifications. Your phone will show up in the dashboard. Choose it and press **Send Notification**.
 
-Other ways to reach the backend: emulator `http://10.0.2.2:8000`, or Wi-Fi `http://<LAN IP>:8000` with `HOST=0.0.0.0 ./scripts/start-backend.sh`. The URL can be changed in the app under Settings.
+No USB cable? In the app, open **Settings** and change the backend address:
+- Emulator: `http://10.0.2.2:8000`
+- Same Wi-Fi: `http://<your laptop IP>:8000` (start the backend with `HOST=0.0.0.0 ./scripts/start-backend.sh`)
 
-## How delivery works
+## How a message reaches the phone
 
-The backend sends an FCM **notification message** (title and body) with high priority on channel `general`.
-
-| App state | Who shows it |
+| App state | Who shows the notification |
 |---|---|
-| Foreground | The app, through Notifee |
-| Background or closed | Android itself (no duplicates) |
+| Open | The app itself |
+| Background or closed | Android itself |
 
-"Accepted by Firebase" means FCM took the message, not that the phone displayed it.
+When the dashboard says "accepted by Firebase", it means Firebase received the message. It does not prove that the phone showed it yet.
 
-**Limits.** Delivery is never guaranteed: the phone may be offline, notification permission may be denied, a force-stopped app receives nothing until reopened, and some manufacturers restrict background apps. An uninstalled app gives an invalid token, which the backend marks inactive (HTTP 410).
+**Important:** delivery is never guaranteed. It can fail if the phone is offline, if notifications are turned off, or if the app was force-stopped (Android blocks it until you open the app again). Some phone brands also stop background apps to save battery.
 
 ## API
 
-| Method | Path | Purpose |
+| Method | Address | What it does |
 |---|---|---|
-| GET | `/api/health` | Status and safe diagnostics |
-| POST | `/api/devices/register` | Register or refresh a device token |
-| GET | `/api/devices` | List devices (masked tokens) |
-| POST | `/api/notifications/send` | Send to a device |
-| GET | `/api/notifications` | Recent attempts |
+| GET | `/api/health` | Shows if the backend is working |
+| POST | `/api/devices/register` | Saves a phone token |
+| GET | `/api/devices` | Lists phones (tokens shortened) |
+| POST | `/api/notifications/send` | Sends a notification |
+| GET | `/api/notifications` | Shows recent messages |
 
 ## Tests
 
 ```bash
-cd backend && source .venv/bin/activate && python -m pytest -q   # Firebase is mocked
+cd backend && source .venv/bin/activate && python -m pytest -q   # Firebase is faked, nothing is really sent
 cd dashboard && pnpm build && pnpm lint
 cd mobile && npx tsc --noEmit && pnpm lint
 ```
 
-## Troubleshooting
+## Common problems
 
-| Problem | Fix |
+| Problem | What to do |
 |---|---|
-| Dashboard says backend offline | Start the backend; the dashboard origin must be `localhost:5173` (CORS) |
-| App cannot register | Re-run `adb reverse tcp:8000 tcp:8000` (resets when unplugged) or fix the URL in Settings |
-| `INSTALL_FAILED_INSUFFICIENT_STORAGE` | Build for your CPU only: `./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a` in `mobile/android` |
-| Gradle cannot find `gradle-plugin` | Run `pnpm install` in `mobile/` (needs `nodeLinker: hoisted`, already configured) |
-| Health shows `firebase: not_configured` | Check `GOOGLE_APPLICATION_CREDENTIALS` in `backend/.env` |
-| Send accepted, nothing on phone | Check notification permission, the General channel, Do Not Disturb, battery optimisation, force-stop |
+| Dashboard says "backend offline" | Start the backend first |
+| App cannot register | Run `adb reverse tcp:8000 tcp:8000` again. It resets when you unplug the phone |
+| Install fails: not enough storage | In `mobile/android`, run `./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a` for a smaller app |
+| Gradle cannot find `gradle-plugin` | Run `pnpm install` inside `mobile/` |
+| Health shows `firebase: not_configured` | Check the key path in `backend/.env` |
+| Message accepted but nothing on the phone | Check notification permission, Do Not Disturb, battery saver, and that the app was not force-stopped |
 
-## Security
+## Keep it safe
 
-`.env` files, service-account keys, `google-services.json`, signing keys, databases and build output are git-ignored. Never place the Admin SDK key in `dashboard/` or `mobile/`. Do not expose the backend to the internet.
+These are ignored by git and must never be uploaded: `.env` files, the Firebase Admin key, `google-services.json`, signing keys, databases, and build files. Never put the Admin key in `dashboard/` or `mobile/`. Do not open the backend to the internet.
