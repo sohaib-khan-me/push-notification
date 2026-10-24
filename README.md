@@ -4,18 +4,18 @@ Send a notification from a web page on your laptop to your Android phone. It use
 
 ```mermaid
 flowchart LR
-    P["<b>Android app</b><br/>React Native"]
-    D["<b>Dashboard</b><br/>React, in your browser"]
-    B["<b>Backend</b><br/>FastAPI + SQLite"]
-    F["<b>Firebase</b><br/>Cloud Messaging"]
+    P["Android app<br/>React Native"]
+    D["Dashboard<br/>React, in your browser"]
+    B["Backend<br/>FastAPI + SQLite"]
+    F["Firebase<br/>Cloud Messaging"]
 
-    P -- "1. Register phone token" --> B
-    D -- "2. Press Send" --> B
-    B -- "3. Send message<br/>(secret key stays here)" --> F
-    F -- "4. Deliver notification" --> P
+    P -->|"Step 1: Register phone token"| B
+    D -->|"Step 2: Press Send"| B
+    B -->|"Step 3: Send message<br/>(secret key stays here)"| F
+    F -->|"Step 4: Deliver notification"| P
 
-    classDef box fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b;
-    class P,D,B,F box;
+    classDef box fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
+    class P,D,B,F box
 ```
 
 **In short:** the phone tells the backend who it is (1). You press Send on the dashboard (2). The backend asks Firebase to send it (3). Firebase delivers it to your phone (4).
